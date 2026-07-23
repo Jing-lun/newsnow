@@ -1,7 +1,10 @@
+import { createError, defineEventHandler, getQuery } from "h3"
 import type { SourceID, SourceResponse } from "@shared/types"
 import { getters } from "#/getters"
 import { getCacheTable } from "#/database/cache"
 import type { CacheInfo } from "#/types"
+import { runtimeSources as sources } from "#/runtime-sources"
+import { logger } from "#/utils/logger"
 
 const info = {
   LICENCE: "MIT",

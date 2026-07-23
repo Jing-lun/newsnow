@@ -546,7 +546,7 @@ export function genSources(env: Environment = process.env) {
 
   const sources = typeSafeObjectFromEntries(
     _.filter(([_, v]) => {
-      if (v.disable === "cf" && process.env.CF_PAGES) {
+      if (v.disable === "cf" && env.CF_PAGES) {
         return false
       } else {
         return v.disable !== true

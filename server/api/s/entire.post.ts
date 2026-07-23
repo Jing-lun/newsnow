@@ -1,5 +1,7 @@
+import { defineEventHandler, readBody } from "h3"
 import type { SourceID, SourceResponse } from "@shared/types"
 import { getCacheTable } from "#/database/cache"
+import { runtimeSources as sources } from "#/runtime-sources"
 
 export default defineEventHandler(async (event) => {
   try {
