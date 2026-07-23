@@ -54,12 +54,13 @@ describe("airank realtime settings", () => {
     }
     const compose = parse(readFileSync("docker-compose.yml", "utf8"))
     const overrides = "cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,ithome=600000,zaobao=1800000"
-    const buildCommit = "$" + "{NEWSNOW_BUILD_COMMIT:-local}"
+    const buildCommit = "$" + "{NEWSNOW_BUILD_COMMIT:?set NEWSNOW_BUILD_COMMIT to the reviewed git SHA}"
 
     expect(exampleEnv).toContain("ENABLE_CACHE=true")
     expect(exampleEnv).toContain("NEWSNOW_CACHE_TTL_MS=300000")
     expect(exampleEnv).toContain(`NEWSNOW_SOURCE_INTERVAL_OVERRIDES=${overrides}`)
-    expect(exampleEnv).toContain("NEWSNOW_BUILD_COMMIT=local")
+    expect(exampleEnv).toContain("NEWSNOW_BUILD_COMMIT=")
+    expect(exampleEnv).toContain("NEWSNOW_BUILD_COMMIT=$(git rev-parse HEAD) docker compose up -d --build")
     expect(compose.services.newsnow).toMatchObject({
       build: {
         context: ".",
@@ -76,7 +77,8 @@ describe("airank realtime settings", () => {
       ["NEWSNOW_BUILD_COMMIT=", buildCommit].join(""),
     ]))
     expect(compose.services.newsnow.volumes).toContain("newsnow_data:/usr/app/.data")
-    expect(dockerfile).toContain("ARG NEWSNOW_BUILD_COMMIT=local")
+    expect(dockerfile).toContain("ARG NEWSNOW_BUILD_COMMIT")
+    expect(dockerfile).not.toContain("ARG NEWSNOW_BUILD_COMMIT=local")
     expect(dockerfile).toMatch(/ENV .*NEWSNOW_BUILD_COMMIT=\$\{NEWSNOW_BUILD_COMMIT\}/)
   })
 })
