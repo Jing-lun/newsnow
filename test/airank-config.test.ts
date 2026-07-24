@@ -42,7 +42,10 @@ describe("airank realtime settings", () => {
   it("provides five-minute self-hosted defaults without removing persistent storage", () => {
     const exampleEnv = readFileSync("example.env.server", "utf8")
     const dockerfile = readFileSync("Dockerfile", "utf8")
-    const parse = createRequire(join(process.cwd(), "node_modules/vite/package.json"))("yaml").parse as (source: string) => {
+    const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { packageManager?: string }
+    const readme = readFileSync("README.md", "utf8")
+    const parse = createRequire(join(process.cwd(), "node_modules/vite/package.json"))("yaml").parse as (source: string) => unknown
+    const compose = parse(readFileSync("docker-compose.yml", "utf8")) as {
       services: {
         newsnow: {
           build?: { context?: string, args?: Record<string, string> }
@@ -52,7 +55,18 @@ describe("airank realtime settings", () => {
         }
       }
     }
-    const compose = parse(readFileSync("docker-compose.yml", "utf8"))
+    const productionWorkflow = parse(readFileSync(".github/workflows/production.yml", "utf8")) as {
+      jobs: {
+        "verify-production": {
+          steps: Array<{
+            name?: string
+            run?: string
+            uses?: string
+            with?: Record<string, string>
+          }>
+        }
+      }
+    }
     const overrides = "cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,zhihu=300000,ithome=600000,zaobao=1800000"
     const declaredRevision = "$" + "{NEWSNOW_DECLARED_REVISION:?set NEWSNOW_DECLARED_REVISION to a full git SHA}"
 
@@ -80,6 +94,24 @@ describe("airank realtime settings", () => {
     expect(dockerfile).toContain("ARG NEWSNOW_DECLARED_REVISION")
     expect(dockerfile).not.toContain("NEWSNOW_BUILD_COMMIT")
     expect(dockerfile).toMatch(/ENV .*NEWSNOW_DECLARED_REVISION=\$\{NEWSNOW_DECLARED_REVISION\}/)
-    expect(dockerfile).toContain('CMD ["node", "output/server/index.mjs"]')
+    expect(dockerfile).toContain("CMD [\"node\", \"output/server/index.mjs\"]")
+    expect(dockerfile.match(/^FROM node:20\.19\.6-alpine(?: AS builder)?$/gm)).toHaveLength(2)
+    expect(dockerfile).toContain("RUN corepack enable")
+    expect(dockerfile).toContain("RUN pnpm install --frozen-lockfile")
+    expect(packageJson.packageManager).toBe("pnpm@10.30.3")
+    expect(productionWorkflow.jobs["verify-production"].steps).toEqual(expect.arrayContaining([
+      {
+        name: "Set up Node.js",
+        uses: "actions/setup-node@v4",
+        with: {
+          "node-version": "20.19.6",
+        },
+      },
+      {
+        name: "Install dependencies",
+        run: "pnpm install --frozen-lockfile",
+      },
+    ]))
+    expect(readme).toContain("Requires Node.js >= 20.19.0")
   })
 })

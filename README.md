@@ -113,7 +113,7 @@ endpoints, and `/robots.txt`.
 ## Development
 
 > [!Note]
-> Requires Node.js >= 20
+> Requires Node.js >= 20.19.0
 
 ```sh
 corepack enable

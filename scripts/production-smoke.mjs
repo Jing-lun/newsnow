@@ -5,6 +5,7 @@ import { createServer } from "node:net"
 import process from "node:process"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
+import { verifyDeployAssets } from "./production-smoke-assets.mjs"
 
 const projectDirectory = dirname(dirname(fileURLToPath(import.meta.url)))
 const envFile = join(projectDirectory, ".env.server")
@@ -120,6 +121,7 @@ try {
   assert.match(root.headers.get("content-type") || "", /^text\/html\b/)
   assert.match(root.body, /<title>NewsNow<\/title>/)
   assert.match(root.body, /<div id="app"><\/div>/)
+  const deployAssets = await verifyDeployAssets(origin, root.body)
 
   const health = await responseBody(origin, "/api/health", 200)
   assert.equal(JSON.parse(health.body).status, "ok")
@@ -131,7 +133,7 @@ try {
   assert.match(staticAsset.body, /User-agent: \*/)
   assert.match(staticAsset.body, /Allow: \//)
 
-  console.log("Production smoke passed: /, /api/health, /api/ready, and /robots.txt")
+  console.log(`Production smoke passed: /, ${deployAssets.length} deploy assets, /api/health, /api/ready, and /robots.txt`)
 } finally {
   await stopServer()
   if (createdEnvFile) await unlink(envFile)
