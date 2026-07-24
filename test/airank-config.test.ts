@@ -53,7 +53,7 @@ describe("airank realtime settings", () => {
       }
     }
     const compose = parse(readFileSync("docker-compose.yml", "utf8"))
-    const overrides = "cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,ithome=600000,zaobao=1800000"
+    const overrides = "cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,zhihu=300000,ithome=600000,zaobao=1800000"
     const buildCommit = "$" + "{NEWSNOW_BUILD_COMMIT:?set NEWSNOW_BUILD_COMMIT to the reviewed git SHA}"
 
     expect(exampleEnv).toContain("ENABLE_CACHE=true")
