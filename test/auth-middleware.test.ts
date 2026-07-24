@@ -29,15 +29,30 @@ afterEach(() => {
 })
 
 describe("authentication middleware", () => {
-  it("allows exactly the health endpoint with an empty auth configuration", async () => {
+  it.each(["/api/health", "/api/ready"])(
+    "allows the %s operational endpoint with an empty auth configuration",
+    async (pathname) => {
+      delete process.env.JWT_SECRET
+      delete process.env.G_CLIENT_ID
+      delete process.env.G_CLIENT_SECRET
+      const handler = await loadMiddleware(pathname)
+      const event: { context: Record<string, unknown> } = { context: {} }
+
+      await expect(handler(event)).resolves.toBeUndefined()
+      expect(event.context.disabledLogin).toBe(true)
+    },
+  )
+
+  it("does not allow paths below an operational endpoint", async () => {
     delete process.env.JWT_SECRET
     delete process.env.G_CLIENT_ID
     delete process.env.G_CLIENT_SECRET
-    const handler = await loadMiddleware("/api/health")
-    const event = { context: {} }
+    const handler = await loadMiddleware("/api/ready/extra")
 
-    await expect(handler(event)).resolves.toBeUndefined()
-    expect(event.context.disabledLogin).toBe(true)
+    await expect(handler({ context: {} })).rejects.toMatchObject({
+      statusCode: 506,
+      message: "Server not configured, disable login",
+    })
   })
 
   it.each(["/api/health/extra", "/api/admin"])(

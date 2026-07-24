@@ -14,7 +14,7 @@ afterEach(() => {
 describe("health endpoint", () => {
   it("reports safe runtime configuration from the server registry", async () => {
     process.env.JWT_SECRET = "must-not-be-exposed"
-    process.env.NEWSNOW_BUILD_COMMIT = "abc123"
+    process.env.NEWSNOW_DECLARED_REVISION = "ABCDEF0123456789ABCDEF0123456789ABCDEF01"
     process.env.NEWSNOW_SOURCE_INTERVAL_OVERRIDES = "cls-telegraph=120000"
 
     const { runtimeSources, sourceRegistryHash } = await import("../server/runtime-sources")
@@ -24,7 +24,8 @@ describe("health endpoint", () => {
     expect(status).toMatchObject({
       status: "ok",
       version: "0.0.41",
-      buildCommit: "abc123",
+      declaredRevision: "abcdef0123456789abcdef0123456789abcdef01",
+      readinessEndpoint: "/api/ready",
       cacheTtlMs: 300_000,
       sourceRegistryHash: sourceRegistryHash(runtimeSources),
       configuredSourceIntervals: {
@@ -34,11 +35,17 @@ describe("health endpoint", () => {
     expect(JSON.stringify(status)).not.toContain(process.env.JWT_SECRET)
   })
 
-  it("uses an unknown build commit when none is configured", async () => {
-    delete process.env.NEWSNOW_BUILD_COMMIT
+  it.each([
+    ["missing", undefined],
+    ["short", "abc123"],
+    ["non-hex", "z".repeat(40)],
+    ["surrounded by whitespace", ` ${"a".repeat(40)} `],
+  ])("does not report a %s revision declaration", async (_, revision) => {
+    if (revision === undefined) delete process.env.NEWSNOW_DECLARED_REVISION
+    else process.env.NEWSNOW_DECLARED_REVISION = revision
 
     const { healthStatus } = await import("../server/api/health")
 
-    expect(healthStatus().buildCommit).toBe("unknown")
+    expect(healthStatus().declaredRevision).toBeNull()
   })
 })
