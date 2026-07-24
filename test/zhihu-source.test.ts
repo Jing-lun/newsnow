@@ -36,7 +36,7 @@ describe("zhihu source", () => {
     }))
     vi.doMock("#/utils/fetch", () => ({ myFetch: fetch }))
 
-    const source = (await import("./zhihu")).default
+    const source = (await import("../server/sources/zhihu")).default
     const items = await source.zhihu()
 
     expect(fetch).toHaveBeenCalledWith(
