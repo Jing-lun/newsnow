@@ -39,6 +39,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          build-args: |
+            NEWSNOW_DECLARED_REVISION=${{ github.sha }}
           context: .
           file: ./Dockerfile
           platforms: |
@@ -46,4 +48,6 @@ jobs:
             linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.revision=${{ github.sha }}

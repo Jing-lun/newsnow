@@ -1,5 +1,5 @@
 import process from "node:process"
-import { Interval } from "./consts"
+import { type Environment, Interval, sourceIntervalMs, sourceIntervalOverrides } from "./consts"
 import { typeSafeObjectFromEntries } from "./type.util"
 import type { OriginSource, Source, SourceID } from "./types"
 
@@ -502,7 +502,7 @@ export const originSources = {
   },
 } as const satisfies Record<string, OriginSource>
 
-export function genSources() {
+export function genSources(env: Environment = process.env) {
   const _: [SourceID, Source][] = []
 
   Object.entries(originSources).forEach(([id, source]: [any, OriginSource]) => {
@@ -544,13 +544,24 @@ export function genSources() {
     }
   })
 
-  return typeSafeObjectFromEntries(
+  const sources = typeSafeObjectFromEntries(
     _.filter(([_, v]) => {
-      if (v.disable === "cf" && process.env.CF_PAGES) {
+      if (v.disable === "cf" && env.CF_PAGES) {
         return false
       } else {
         return v.disable !== true
       }
     }),
+  )
+
+  const overrides = sourceIntervalOverrides(env, Object.keys(sources))
+  return typeSafeObjectFromEntries(
+    Object.entries(sources).map(([id, source]) => [
+      id,
+      {
+        ...source,
+        interval: sourceIntervalMs(id, source.interval, env, overrides),
+      },
+    ]),
   )
 }

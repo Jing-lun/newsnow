@@ -87,15 +87,33 @@ Supported database connectors: https://db0.unjs.io/connectors
 In project root directory:
 
 ```sh
-docker compose up
+NEWSNOW_DECLARED_REVISION=$(git rev-parse HEAD) docker compose up --build
 ```
 
 You can also set Environment Variables in `docker-compose.yml`.
 
+`NEWSNOW_DECLARED_REVISION` is validated as a full 40-character Git SHA and
+reported as informational deployment metadata. It does not prove that the
+working tree was reviewed or that the image contains that source. Published
+images set it from the CI checkout's `github.sha`; deploy by immutable image
+digest and treat that digest plus the CI run as the provenance boundary.
+
+### Operational Endpoints
+
+- `GET /api/health` is liveness only. A `200` response means the server process
+  can handle requests; it does not claim the web app is ready.
+- `GET /api/ready` checks the packaged `public/index.html` app shell. It returns
+  `200` with `status: "ready"` when the shell is valid and `503` with
+  `status: "not_ready"` when it is missing or invalid.
+
+Both endpoints are available without login configuration. CI builds the
+packaged app and runs a production smoke test against `/`, both operational
+endpoints, and `/robots.txt`.
+
 ## Development
 
 > [!Note]
-> Requires Node.js >= 20
+> Requires Node.js >= 20.19.0
 
 ```sh
 corepack enable

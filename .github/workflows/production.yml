@@ -1,0 +1,40 @@
+name: Production verification
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    env:
+      NEWSNOW_DECLARED_REVISION: ${{ github.sha }}
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.6
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm exec vitest run -c vitest.config.ts
+
+      - name: Build packaged app
+        run: pnpm run build
+
+      - name: Smoke test packaged app
+        run: pnpm run smoke:production
