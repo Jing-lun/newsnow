@@ -40,6 +40,19 @@ describe("server runtime source registry", () => {
     })
   })
 
+  it("keeps non-profile source requests available when production-30 is enabled", async () => {
+    process.env.NEWSNOW_SOURCE_PROFILE = "production-30"
+
+    const { runtimeSources, sourceProfile } = await import("../server/runtime-sources")
+
+    expect(runtimeSources.v2ex).toBeDefined()
+    expect(runtimeSources.v2ex.redirect).toBe("v2ex-share")
+    expect(sourceProfile()).toMatchObject({
+      name: "production-30",
+      sourceIds: expect.arrayContaining(["cls-telegraph", "steam"]),
+    })
+  })
+
   it("uses the runtime interval when serving a cached source request", async () => {
     process.env.NEWSNOW_SOURCE_INTERVAL_OVERRIDES = "cls-telegraph=120000"
     const getter = vi.fn(async () => [{ id: "fresh", title: "Fresh", url: "https://example.com/fresh" }])

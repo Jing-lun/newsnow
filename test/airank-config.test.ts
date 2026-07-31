@@ -4,6 +4,61 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { cacheTtlMs, sourceIntervalMs } from "../shared/consts"
 import { genSources } from "../shared/pre-sources"
+import { createRuntimeSources, sourceProfile } from "../server/runtime-sources"
+
+const production30SourceIds = [
+  "cls-telegraph",
+  "wallstreetcn-quick",
+  "jin10",
+  "gelonghui",
+  "fastbull-express",
+  "mktnews-flash",
+  "wallstreetcn-news",
+  "wallstreetcn-hot",
+  "cls-depth",
+  "cls-hot",
+  "fastbull-news",
+  "zaobao",
+  "thepaper",
+  "cankaoxiaoxi",
+  "sputniknewscn",
+  "tencent-hot",
+  "toutiao",
+  "ithome",
+  "36kr-quick",
+  "36kr-renqi",
+  "github-trending-today",
+  "hackernews",
+  "producthunt",
+  "xueqiu-hotstock",
+  "zhihu",
+  "weibo",
+  "baidu",
+  "douyin",
+  "bilibili-hot-search",
+  "steam",
+] as const
+
+const fiveMinuteSourceIds = new Set([
+  "cls-telegraph",
+  "wallstreetcn-quick",
+  "jin10",
+  "xueqiu-hotstock",
+  "gelonghui",
+  "fastbull-express",
+  "mktnews-flash",
+  "weibo",
+])
+
+const thirtyMinuteSourceIds = new Set([
+  "zaobao",
+  "wallstreetcn-news",
+  "wallstreetcn-hot",
+  "fastbull-news",
+  "thepaper",
+  "cankaoxiaoxi",
+  "tencent-hot",
+])
 
 describe("airank realtime settings", () => {
   it("defaults cache ttl to five minutes", () => {
@@ -33,6 +88,47 @@ describe("airank realtime settings", () => {
     })
 
     expect(sources["cls-telegraph"].interval).toBe(300_000)
+  })
+
+  it("applies the production-30 profile only to its canonical leaves", () => {
+    const sourceRegistry = genSources({})
+    const runtimeSources = createRuntimeSources({ NEWSNOW_SOURCE_PROFILE: "production-30" })
+    const profile = sourceProfile({ NEWSNOW_SOURCE_PROFILE: "production-30" }, sourceRegistry as typeof runtimeSources)
+
+    expect(profile?.name).toBe("production-30")
+    expect(profile?.sourceIds).toEqual(production30SourceIds)
+    expect(profile?.sourceIds).toHaveLength(30)
+    expect(new Set(profile?.sourceIds).size).toBe(30)
+    expect(profile?.sourceIds.every(id => sourceRegistry[id] && !sourceRegistry[id].redirect)).toBe(true)
+    expect(profile?.sourceIds).not.toContain("aihot")
+
+    production30SourceIds.forEach((id) => {
+      const expectedInterval = fiveMinuteSourceIds.has(id)
+        ? 300_000
+        : thirtyMinuteSourceIds.has(id)
+          ? 1_800_000
+          : 600_000
+      expect(runtimeSources[id].interval).toBe(expectedInterval)
+    })
+  })
+
+  it("keeps the full registry and validates overrides when production-30 is enabled", () => {
+    const sourceRegistry = genSources({})
+    const runtimeSources = createRuntimeSources({
+      NEWSNOW_SOURCE_PROFILE: "production-30",
+      NEWSNOW_SOURCE_INTERVAL_OVERRIDES: "v2ex=300000",
+    })
+
+    expect(Object.keys(runtimeSources).sort()).toEqual(Object.keys(sourceRegistry).sort())
+    expect(runtimeSources.v2ex.interval).toBe(300_000)
+    expect(() => createRuntimeSources({
+      NEWSNOW_SOURCE_PROFILE: "production-30",
+      NEWSNOW_SOURCE_INTERVAL_OVERRIDES: "unknown=300000",
+    })).toThrow("unknown source")
+  })
+
+  it("rejects unknown source profiles", () => {
+    expect(() => createRuntimeSources({ NEWSNOW_SOURCE_PROFILE: "not-a-profile" })).toThrow("unknown source profile")
   })
 
   it("uses the provided Cloudflare environment when expanding sources", () => {
@@ -67,12 +163,12 @@ describe("airank realtime settings", () => {
         }
       }
     }
-    const overrides = "cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,zhihu=300000,ithome=600000,zaobao=1800000"
     const declaredRevision = "$" + "{NEWSNOW_DECLARED_REVISION:?set NEWSNOW_DECLARED_REVISION to a full git SHA}"
 
     expect(exampleEnv).toContain("ENABLE_CACHE=true")
     expect(exampleEnv).toContain("NEWSNOW_CACHE_TTL_MS=300000")
-    expect(exampleEnv).toContain(`NEWSNOW_SOURCE_INTERVAL_OVERRIDES=${overrides}`)
+    expect(exampleEnv).toContain("NEWSNOW_SOURCE_PROFILE=production-30")
+    expect(exampleEnv).toContain("NEWSNOW_SOURCE_INTERVAL_OVERRIDES=")
     expect(exampleEnv).toContain("NEWSNOW_DECLARED_REVISION=")
     expect(exampleEnv).toContain("NEWSNOW_DECLARED_REVISION=$(git rev-parse HEAD) docker compose up -d --build")
     expect(compose.services.newsnow).toMatchObject({
@@ -87,7 +183,7 @@ describe("airank realtime settings", () => {
     expect(compose.services.newsnow.environment).toEqual(expect.arrayContaining([
       "ENABLE_CACHE=true",
       "NEWSNOW_CACHE_TTL_MS=300000",
-      `NEWSNOW_SOURCE_INTERVAL_OVERRIDES=${overrides}`,
+      "NEWSNOW_SOURCE_INTERVAL_OVERRIDES=cls-telegraph=300000,wallstreetcn-quick=300000,jin10=300000,xueqiu-hotstock=300000,gelonghui=300000,fastbull-express=300000,zhihu=300000,ithome=600000,zaobao=1800000",
       ["NEWSNOW_DECLARED_REVISION=", declaredRevision].join(""),
     ]))
     expect(compose.services.newsnow.volumes).toContain("newsnow_data:/usr/app/.data")

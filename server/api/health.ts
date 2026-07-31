@@ -1,7 +1,7 @@
 import process from "node:process"
 import { defineEventHandler } from "h3"
 import { Version, cacheTtlMs } from "@shared/consts"
-import { runtimeSourceIntervals, runtimeSources, sourceRegistryHash } from "#/runtime-sources"
+import { runtimeSourceIntervals, runtimeSourceProfile, runtimeSources, sourceRegistryHash } from "#/runtime-sources"
 
 function compareSourceIds(left: string, right: string) {
   return left < right ? -1 : left > right ? 1 : 0
@@ -22,6 +22,13 @@ export function healthStatus() {
     configuredSourceIntervals: Object.fromEntries(
       [...runtimeSourceIntervals.entries()].sort(([left], [right]) => compareSourceIds(left, right)),
     ),
+    ...(runtimeSourceProfile && {
+      sourceProfile: {
+        name: runtimeSourceProfile.name,
+        count: runtimeSourceProfile.sourceIds.length,
+        selectorHash: runtimeSourceProfile.selectorHash,
+      },
+    }),
   }
 }
 

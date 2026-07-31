@@ -32,6 +32,7 @@ describe("health endpoint", () => {
         "cls-telegraph": 120_000,
       },
     })
+    expect(status).not.toHaveProperty("sourceProfile")
     expect(JSON.stringify(status)).not.toContain(process.env.JWT_SECRET)
   })
 
@@ -47,5 +48,22 @@ describe("health endpoint", () => {
     const { healthStatus } = await import("../server/api/health")
 
     expect(healthStatus().declaredRevision).toBeNull()
+  })
+
+  it("reports production profile observability only when the profile is enabled", async () => {
+    process.env.NEWSNOW_SOURCE_PROFILE = "production-30"
+
+    const { healthStatus } = await import("../server/api/health")
+    const { sourceProfile } = await import("../server/runtime-sources")
+    const status = healthStatus()
+    const profile = sourceProfile()
+
+    expect(profile).toBeDefined()
+    expect(status.sourceProfile).toEqual({
+      name: "production-30",
+      count: 30,
+      selectorHash: profile?.selectorHash,
+    })
+    expect(status.sourceProfile?.selectorHash).toMatch(/^[0-9a-f]{64}$/)
   })
 })
